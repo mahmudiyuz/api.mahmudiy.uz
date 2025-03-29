@@ -1,30 +1,60 @@
 const express = require("express");
+const os = require("os");
 const cors = require("cors");
-const pgp = require("pg-promise")();
-
+const { Client } = require("pg");
 require("dotenv").config();
 
 const app = express();
-const db = pgp(process.env.DATABASE_URL);
 
-// middlewares
 app.use(cors());
 app.use(express.json());
 
-const port = 4500;
+const port = process.env.PORT;
 
-// API endpoint
-app.get("/user-info", async (req, res) => {
-  try {
-    const data = await db.one("SELECT * FROM activity_log LIMIT 1");
-    res.json(data);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Ma'lumot olishda xatolik" });
+const client = new Client({
+  host: process.env.DATABASE_PG_HOST,
+  user: process.env.DATABASE_PG_USER,
+  port: process.env.DATABASE_PG_PORT,
+  password: process.env.DATABASE_PG_PASSWORD,
+  database: process.env.DATABASE_PG_DB,
+});
+
+client.connect((err) => {
+  if (err) {
+    console.error("Connection error: ", err.stack);
+  } else {
+    console.log("psql server successfully connected");
   }
 });
 
-// server locale connection
+client.query(`select * from activity_log`, (err, res) => {
+  if (!err) {
+    console.log(res.rows);
+  } else {
+    console.error(err.message);
+  }
+
+  client.end;
+});
+
+app.get("/user-info", async (req, res) => {
+  try {
+    res.json({
+      arch: os.arch(),
+      platform: os.platform(),
+      user: os.userInfo(),
+      homedir: os.homedir(),
+      hostname: os.hostname(),
+      machine: os.machine(),
+      endianness: os.endianness(),
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Error on get data" });
+
+    console.error(error);
+  }
+});
+
 app.listen(port, () => {
-  console.log(`Server ${port}-portda ishlamoqda`);
+  console.log(`Server run port-${port}`);
 });
